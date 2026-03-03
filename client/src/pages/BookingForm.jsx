@@ -121,6 +121,7 @@ const BookingForm = () => {
   const workspaceIdParam = searchParams.get('workspaceId');
 
   const [bookingToken, setBookingToken] = useState(tokenParam);
+  const [browserTimezone, setBrowserTimezone] = useState('');
   const [publicInitError, setPublicInitError] = useState(null);
   const [step, setStep] = useState('schedule');
 
@@ -165,6 +166,17 @@ const BookingForm = () => {
   useEffect(() => {
     setBookingToken(tokenParam);
   }, [tokenParam]);
+
+  useEffect(() => {
+    try {
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (detected) {
+        setBrowserTimezone(detected);
+      }
+    } catch {
+      setBrowserTimezone('');
+    }
+  }, []);
 
   useEffect(() => {
     let isActive = true;
@@ -229,7 +241,7 @@ const BookingForm = () => {
 
   const selectedDateLabel = formatPrettyDate(selectedDate);
   const duration = bookingMeta?.durationMinutes || DURATION_MINUTES;
-  const timezone = bookingMeta?.timezone || TIMEZONE;
+  const timezone = browserTimezone || bookingMeta?.timezone || TIMEZONE;
   const timezoneOffsetLabel = useMemo(
     () => getTimezoneOffsetLabel(timezone, selectedDate),
     [timezone, selectedDate]
