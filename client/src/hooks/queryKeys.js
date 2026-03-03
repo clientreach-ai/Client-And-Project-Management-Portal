@@ -30,6 +30,11 @@ export const leadIntakeKeys = {
   list: (workspaceId) => ['leadIntakes', workspaceId],
 };
 
+export const meetingKeys = {
+  list: (workspaceId) => ['meetings', workspaceId],
+  lookup: (token) => ['meetingLink', token],
+};
+
 export const fileKeys = {
   list: (workspaceId, clientId, projectId) => [
     'sharedFiles',

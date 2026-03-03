@@ -170,6 +170,29 @@ export const deleteLeadResource = async (resourceId) =>
     method: 'DELETE',
   });
 
+export const fetchMeetings = async (workspaceId) =>
+  apiFetch(`/api/meetings?workspaceId=${encodeURIComponent(workspaceId)}`);
+
+export const createPublicMeetingLink = async (payload) =>
+  apiFetch('/api/meetings/public', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const lookupMeetingLink = async (token) =>
+  apiFetch(`/api/meetings/lookup?token=${encodeURIComponent(token)}`);
+
+export const submitMeetingBooking = async (payload) =>
+  apiFetch('/api/meetings/submit', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+
+export const deleteMeeting = async (meetingId) =>
+  apiFetch(`/api/meetings/${encodeURIComponent(meetingId)}`, {
+    method: 'DELETE',
+  });
+
 export const sendInvitation = async (payload) =>
   apiFetch('/api/invitations', {
     method: 'POST',

@@ -13,6 +13,7 @@ import filesRouter from './routes/files.js';
 import messagesRouter from './routes/messages.js';
 import invoicesRouter from './routes/invoices.js';
 import stripeRouter from './routes/stripe.js';
+import meetingsRouter from './routes/meetings.js';
 import { requireAuth } from './middleware/auth.js';
 
 const app = express();
@@ -37,6 +38,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', authRouter);
 app.use('/api/invitations', invitationsRouter);
 app.use('/api/client-intakes', clientIntakesRouter);
+app.use('/api/meetings', meetingsRouter);
 
 app.use('/api', requireAuth);
 

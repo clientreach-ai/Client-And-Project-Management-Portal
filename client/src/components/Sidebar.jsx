@@ -8,6 +8,7 @@ import {
   BarChart3Icon,
   BriefcaseIcon,
   CalendarIcon,
+  CalendarPlusIcon,
   CheckSquareIcon,
   FileTextIcon,
   FolderOpenIcon,
@@ -101,6 +102,12 @@ const Sidebar = ({ isSidebarOpen, setIsSidebarOpen }) => {
                 name: 'Leads',
                 href: '/leads',
                 icon: FileTextIcon,
+                exact: true,
+              },
+              {
+                name: 'Bookings',
+                href: '/bookings',
+                icon: CalendarPlusIcon,
                 exact: true,
               },
             ]

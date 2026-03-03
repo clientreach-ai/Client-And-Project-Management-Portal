@@ -136,6 +136,56 @@ export const leadIntakes = pgTable('lead_intakes', {
     .notNull(),
 });
 
+export const meetingLinks = pgTable('meeting_links', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id')
+    .notNull()
+    .references(() => workspaces.id),
+  token: text('token').notNull().unique(),
+  status: text('status').default('OPEN').notNull(),
+  title: text('title'),
+  durationMinutes: integer('duration_minutes').default(45).notNull(),
+  timezone: text('timezone').default('Africa/Addis_Ababa').notNull(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const meetings = pgTable('meetings', {
+  id: text('id').primaryKey(),
+  workspaceId: text('workspace_id')
+    .notNull()
+    .references(() => workspaces.id),
+  meetingLinkId: text('meeting_link_id').references(() => meetingLinks.id),
+  status: text('status').default('SCHEDULED').notNull(),
+  firstName: text('first_name').notNull(),
+  lastName: text('last_name').notNull(),
+  phone: text('phone').notNull(),
+  email: text('email').notNull(),
+  websiteUrl: text('website_url'),
+  businessType: text('business_type'),
+  targetAudience: text('target_audience'),
+  monthlyRevenue: text('monthly_revenue'),
+  decisionMaker: text('decision_maker'),
+  scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+  scheduledEndAt: timestamp('scheduled_end_at', {
+    withTimezone: true,
+  }).notNull(),
+  timezone: text('timezone').notNull(),
+  durationMinutes: integer('duration_minutes').notNull(),
+  payload: jsonb('payload').default({}),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export const projects = pgTable('projects', {
   id: text('id').primaryKey(),
   workspaceId: text('workspace_id')

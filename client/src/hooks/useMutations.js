@@ -33,6 +33,9 @@ import {
   createInvoiceCheckoutSession,
   createLeadResource,
   deleteLeadResource,
+  createPublicMeetingLink,
+  submitMeetingBooking,
+  deleteMeeting,
 } from '../api';
 import {
   clientKeys,
@@ -45,6 +48,7 @@ import {
   fileKeys,
   messageKeys,
   invoiceKeys,
+  meetingKeys,
 } from './queryKeys';
 
 export const useCreateWorkspace = () => {
@@ -505,3 +509,28 @@ export const useCreateInvoiceCheckoutSession = () =>
   useMutation({
     mutationFn: ({ invoiceId }) => createInvoiceCheckoutSession(invoiceId),
   });
+
+export const useCreatePublicMeetingLink = () =>
+  useMutation({
+    mutationFn: createPublicMeetingLink,
+  });
+
+export const useSubmitMeetingBooking = () =>
+  useMutation({
+    mutationFn: submitMeetingBooking,
+  });
+
+export const useDeleteMeeting = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ meetingId }) => deleteMeeting(meetingId),
+    onSuccess: (deleted, variables) => {
+      const workspaceId = deleted?.workspaceId || variables?.workspaceId;
+      if (workspaceId) {
+        queryClient.invalidateQueries({
+          queryKey: meetingKeys.list(workspaceId),
+        });
+      }
+    },
+  });
+};

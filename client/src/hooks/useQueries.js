@@ -15,6 +15,8 @@ import {
   fetchInvoices,
   fetchInvoiceById,
   fetchLeadResources,
+  fetchMeetings,
+  lookupMeetingLink,
 } from '../api';
 import {
   clientKeys,
@@ -27,6 +29,7 @@ import {
   fileKeys,
   messageKeys,
   invoiceKeys,
+  meetingKeys,
 } from './queryKeys';
 
 export const useWorkspaces = (options = {}) =>
@@ -115,6 +118,22 @@ export const useLeadResources = (workspaceId, options = {}) =>
     queryKey: leadResourceKeys.list(workspaceId),
     queryFn: () => fetchLeadResources(workspaceId),
     enabled: Boolean(workspaceId),
+    ...options,
+  });
+
+export const useMeetings = (workspaceId, options = {}) =>
+  useQuery({
+    queryKey: meetingKeys.list(workspaceId),
+    queryFn: () => fetchMeetings(workspaceId),
+    enabled: Boolean(workspaceId),
+    ...options,
+  });
+
+export const useMeetingLinkLookup = (token, options = {}) =>
+  useQuery({
+    queryKey: meetingKeys.lookup(token),
+    queryFn: () => lookupMeetingLink(token),
+    enabled: Boolean(token),
     ...options,
   });
 
