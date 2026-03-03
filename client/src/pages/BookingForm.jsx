@@ -734,25 +734,54 @@ const BookingForm = () => {
                         <p className="block text-sm font-medium text-gray-300 mb-2">
                           Are you the primary decision maker for your business?
                         </p>
-                        <div className="space-y-2">
-                          {DECISION_MAKER_OPTIONS.map((option) => (
-                            <label
-                              key={option}
-                              className="flex items-center gap-2 border border-white/10 rounded-xl px-3 py-2.5 hover:bg-white/5"
-                            >
-                              <input
-                                type="radio"
-                                name="decision_maker"
-                                checked={formData.decision_maker === option}
-                                onChange={() =>
-                                  updateField('decision_maker', option)
-                                }
-                              />
-                              <span className="text-gray-300 text-sm">
-                                {option}
-                              </span>
-                            </label>
-                          ))}
+                        <div className="space-y-2.5">
+                          {DECISION_MAKER_OPTIONS.map((option) => {
+                            const isSelected =
+                              formData.decision_maker === option;
+
+                            return (
+                              <label
+                                key={option}
+                                className={`flex items-start gap-3 rounded-xl px-4 py-3 cursor-pointer border transition-all ${
+                                  isSelected
+                                    ? 'border-[#14A3F6] bg-[#14A3F6]/10 shadow-[0_0_16px_rgba(20,163,246,0.2)]'
+                                    : 'border-white/10 hover:border-white/30 hover:bg-white/5'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name="decision_maker"
+                                  checked={isSelected}
+                                  onChange={() =>
+                                    updateField('decision_maker', option)
+                                  }
+                                  className="sr-only"
+                                />
+                                <span
+                                  className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${
+                                    isSelected
+                                      ? 'border-[#14A3F6]'
+                                      : 'border-white/25'
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-2.5 h-2.5 rounded-full transition-colors ${
+                                      isSelected
+                                        ? 'bg-[#14A3F6]'
+                                        : 'bg-transparent'
+                                    }`}
+                                  />
+                                </span>
+                                <span
+                                  className={`text-sm leading-relaxed ${
+                                    isSelected ? 'text-white' : 'text-gray-300'
+                                  }`}
+                                >
+                                  {option}
+                                </span>
+                              </label>
+                            );
+                          })}
                         </div>
                       </div>
 
