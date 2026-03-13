@@ -3,7 +3,7 @@ import {
   getEmailFromAddress,
   getOwnerEmail,
   isEmailConfigured,
-  transporter,
+  sendEmail,
 } from './email.js';
 
 export const MEETING_REMINDER_SCHEDULES = [
@@ -160,7 +160,7 @@ export const sendMeetingBookingEmails = async ({
   scheduledAt,
 }) => {
   if (!isEmailConfigured()) {
-    throw new Error('EMAIL_USER or EMAIL_PASS is not configured');
+    throw new Error('RESEND_API_KEY is not configured');
   }
 
   const fromAddress = getEmailFromAddress();
@@ -197,18 +197,8 @@ export const sendMeetingBookingEmails = async ({
   });
 
   await Promise.all([
-    transporter.sendMail({
-      from: fromAddress,
-      to: email,
-      subject: 'Your booking is confirmed',
-      html: customerHtml,
-    }),
-    transporter.sendMail({
-      from: fromAddress,
-      to: ownerEmail,
-      subject: `New booking: ${fullName || 'Unknown contact'}`,
-      html: ownerHtml,
-    }),
+    sendEmail({ from: fromAddress, to: email, subject: 'Your booking is confirmed', html: customerHtml }),
+    sendEmail({ from: fromAddress, to: ownerEmail, subject: `New booking: ${fullName || 'Unknown contact'}`, html: ownerHtml }),
   ]);
 };
 
@@ -224,7 +214,7 @@ export const sendMeetingReminderEmails = async ({
   minutesBefore,
 }) => {
   if (!isEmailConfigured()) {
-    throw new Error('EMAIL_USER or EMAIL_PASS is not configured');
+    throw new Error('RESEND_API_KEY is not configured');
   }
 
   const fromAddress = getEmailFromAddress();
@@ -263,17 +253,7 @@ export const sendMeetingReminderEmails = async ({
   });
 
   await Promise.all([
-    transporter.sendMail({
-      from: fromAddress,
-      to: email,
-      subject: `Reminder: your call starts in ${reminderLabel}`,
-      html: customerHtml,
-    }),
-    transporter.sendMail({
-      from: fromAddress,
-      to: ownerEmail,
-      subject: `Upcoming booking in ${reminderLabel}: ${fullName || 'Unknown contact'}`,
-      html: ownerHtml,
-    }),
+    sendEmail({ from: fromAddress, to: email, subject: `Reminder: your call starts in ${reminderLabel}`, html: customerHtml }),
+    sendEmail({ from: fromAddress, to: ownerEmail, subject: `Upcoming booking in ${reminderLabel}: ${fullName || 'Unknown contact'}`, html: ownerHtml }),
   ]);
 };

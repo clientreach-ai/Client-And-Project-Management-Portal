@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import crypto from 'crypto';
-import nodemailer from 'nodemailer';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import {
@@ -13,19 +12,10 @@ import {
 import { generateId } from '../lib/ids.js';
 import { requireAuth } from '../middleware/auth.js';
 import { isWorkspaceAdmin } from '../lib/permissions.js';
+import { getEmailFromAddress, isEmailConfigured, sendEmail } from '../lib/email.js';
 
 const router = Router();
 const LEAD_RESOURCE_TYPE = 'LEAD_RESOURCE';
-
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  },
-});
 
 const buildIntakeLink = (token) => {
   const baseUrl = process.env.ONBOARDING_PORTAL_URL || 'http://localhost:3000';
@@ -71,14 +61,14 @@ const buildLeadResourceEmailHtml = (name, downloadUrl) => `
 `;
 
 const sendLeadResourceEmail = async ({ name, email, downloadUrl }) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error('EMAIL_USER or EMAIL_PASS is not configured');
+  if (!isEmailConfigured()) {
+    throw new Error('RESEND_API_KEY is not configured');
   }
 
   const safeName = toSafeString(name) || 'there';
 
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+  await sendEmail({
+    from: getEmailFromAddress(),
     to: email,
     subject: `Your free resource is ready, ${safeName}`,
     html: buildLeadResourceEmailHtml(safeName, downloadUrl),
