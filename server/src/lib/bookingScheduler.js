@@ -37,24 +37,13 @@ const REMINDER_STEPS = [
   },
 ];
 
-const formatDateUtc = (scheduledAt) => {
-  try {
-    return new Date(scheduledAt).toLocaleString('en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'UTC',
-    });
-  } catch {
-    return new Date(scheduledAt).toISOString();
-  }
-};
-
 const buildClientReminderPayload = ({
   meetingId,
   attendeeEmail,
   zoomLink,
   label,
   includeLink,
+  booking,
 }) => ({
   meetingId,
   emailType: `CLIENT_REMINDER_${label.replace(/\s+/g, '_').toUpperCase()}`,
@@ -64,6 +53,8 @@ const buildClientReminderPayload = ({
   text: includeLink
     ? `Your meeting starts in ${label}.\n\nJoin link: ${zoomLink}`
     : `Your meeting starts in ${label}.\n\nWe will send your meeting link in the final reminder 5 minutes before start time.`,
+  booking,
+  zoomLink,
 });
 
 const buildOwnerReminderPayload = ({
@@ -75,34 +66,17 @@ const buildOwnerReminderPayload = ({
   booking,
 }) => {
   const fullName = `${booking.firstName || ''} ${booking.lastName || ''}`.trim();
-  const lines = [
-    `Upcoming meeting in ${label}`,
-    '',
-    `Client: ${fullName || 'N/A'}`,
-    `Client Email: ${booking.attendeeEmail || 'N/A'}`,
-    `Phone: ${booking.phone || 'N/A'}`,
-    `Workspace: ${booking.workspaceName || 'N/A'}`,
-    `Date/Time (UTC): ${formatDateUtc(booking.scheduledAt)}`,
-    `Timezone: ${booking.timezone || 'UTC'}`,
-    `Duration: ${booking.durationMinutes || 'N/A'} minutes`,
-    `Website: ${booking.websiteUrl || 'N/A'}`,
-    `Business Type: ${booking.businessType || 'N/A'}`,
-    `Target Audience: ${booking.targetAudience || 'N/A'}`,
-    `Monthly Revenue: ${booking.monthlyRevenue || 'N/A'}`,
-    `Decision Maker: ${booking.decisionMaker || 'N/A'}`,
-  ];
-
-  if (includeLink) {
-    lines.push('', `Join link: ${zoomLink}`);
-  }
-
   return {
     meetingId,
     emailType: `OWNER_REMINDER_${label.replace(/\s+/g, '_').toUpperCase()}`,
     idempotencyKey: `${meetingId}:OWNER_REMINDER:${label}:${ownerEmail}`,
     to: ownerEmail,
     subject: `Reminder: ${fullName || 'Client'} meeting starts in ${label}`,
-    text: lines.join('\n'),
+    text: includeLink
+      ? `Reminder: ${fullName || 'Client'} meeting starts in ${label}. Join link: ${zoomLink}`
+      : `Reminder: ${fullName || 'Client'} meeting starts in ${label}.`,
+    booking,
+    zoomLink,
   };
 };
 
@@ -130,6 +104,7 @@ export const scheduleEmails = async ({
       zoomLink,
       label: step.label,
       includeLink: step.includeLink,
+      booking,
     });
 
     const ownerPayload = buildOwnerReminderPayload({

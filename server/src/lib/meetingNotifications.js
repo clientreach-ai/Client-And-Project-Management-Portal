@@ -21,6 +21,7 @@ const buildClientBookingSummaryCard = ({
   formattedDate,
   timezone,
   durationMinutes,
+  zoomLink,
   extraNote,
 }) => `
   <div style="background:#f8fbff;border:1px solid #e8f0fe;border-radius:14px;padding:22px 24px;margin:0 0 24px;">
@@ -28,6 +29,7 @@ const buildClientBookingSummaryCard = ({
     <p style="margin:0 0 8px;color:#4a5568;font-size:14px;line-height:1.6;"><strong style="color:#0a2540;">Date &amp; time:</strong> ${escapeHtml(formattedDate)}</p>
     <p style="margin:0 0 8px;color:#4a5568;font-size:14px;line-height:1.6;"><strong style="color:#0a2540;">Time zone:</strong> ${escapeHtml(timezone || 'N/A')}</p>
     <p style="margin:0;color:#4a5568;font-size:14px;line-height:1.6;"><strong style="color:#0a2540;">Duration:</strong> ${escapeHtml(String(durationMinutes || 'N/A'))} minutes</p>
+    ${zoomLink ? `<p style="margin:8px 0 0;color:#4a5568;font-size:14px;line-height:1.6;"><strong style="color:#0a2540;">Join link:</strong> <a href="${escapeHtml(zoomLink)}">${escapeHtml(zoomLink)}</a></p>` : ''}
   </div>
   ${extraNote ? `<p style="color:#4a5568;font-size:14px;line-height:1.7;margin:0;">${extraNote}</p>` : ''}
 `;
@@ -63,6 +65,142 @@ const buildTechnicalBookingEmailHtml = ({
     <p style="margin: 0;"><strong>Duration:</strong> ${escapeHtml(String(durationMinutes || 'N/A'))} minutes</p>
   </div>
 `;
+
+const reminderLabelFromType = (emailType = '') => {
+  if (emailType.includes('1_HOUR')) return '1 hour';
+  if (emailType.includes('30_MINUTES')) return '30 minutes';
+  if (emailType.includes('5_MINUTES')) return '5 minutes';
+  return null;
+};
+
+const buildReminderTextSummary = ({
+  fullName,
+  attendeeEmail,
+  phone,
+  workspaceName,
+  formattedDate,
+  timezone,
+  durationMinutes,
+  websiteUrl,
+  businessType,
+  targetAudience,
+  monthlyRevenue,
+  decisionMaker,
+  zoomLink,
+  includeLink,
+  reminderLabel,
+}) => {
+  const lines = [
+    `Upcoming meeting in ${reminderLabel}`,
+    '',
+    `Client: ${fullName || 'N/A'}`,
+    `Client Email: ${attendeeEmail || 'N/A'}`,
+    `Phone: ${phone || 'N/A'}`,
+    `Workspace: ${workspaceName || 'N/A'}`,
+    `Date/Time: ${formattedDate}`,
+    `Timezone: ${timezone || 'N/A'}`,
+    `Duration: ${durationMinutes || 'N/A'} minutes`,
+    `Website: ${websiteUrl || 'N/A'}`,
+    `Business Type: ${businessType || 'N/A'}`,
+    `Target Audience: ${targetAudience || 'N/A'}`,
+    `Monthly Revenue: ${monthlyRevenue || 'N/A'}`,
+    `Decision Maker: ${decisionMaker || 'N/A'}`,
+  ];
+
+  if (includeLink && zoomLink) {
+    lines.push('', `Join link: ${zoomLink}`);
+  }
+
+  return lines.join('\n');
+};
+
+export const buildReminderEmailContent = ({ emailType, booking = {}, zoomLink }) => {
+  const reminderLabel = reminderLabelFromType(emailType);
+  if (!reminderLabel) return null;
+
+  const isOwner = emailType.startsWith('OWNER_');
+  const includeLink = emailType.includes('5_MINUTES');
+
+  const firstName = booking.firstName || '';
+  const lastName = booking.lastName || '';
+  const fullName = `${firstName} ${lastName}`.trim();
+  const attendeeEmail = booking.attendeeEmail || booking.email || null;
+  const timezone = booking.timezone || 'Europe/London';
+  const formattedDate = formatBookingDate(booking.scheduledAt, timezone);
+  const durationMinutes = booking.durationMinutes;
+
+  if (isOwner) {
+    const ownerHtml = buildBrandedEmailShell({
+      greeting: `Upcoming meeting in ${escapeHtml(reminderLabel)}`,
+      intro:
+        'This is an internal booking reminder from Client Reach AI. Please review the meeting details below.',
+      content: buildTechnicalBookingEmailHtml({
+        heading: `Internal Reminder: meeting starts in ${escapeHtml(reminderLabel)}`,
+        fullName,
+        email: attendeeEmail,
+        phone: booking.phone,
+        websiteUrl: booking.websiteUrl,
+        businessType: booking.businessType,
+        targetAudience: booking.targetAudience,
+        monthlyRevenue: booking.monthlyRevenue,
+        decisionMaker: booking.decisionMaker,
+        workspaceName: booking.workspaceName,
+        formattedDate,
+        timezone,
+        durationMinutes,
+      }) +
+        (includeLink && zoomLink
+          ? `<p style="margin:16px 0 0;font-size:14px;"><strong>Join link:</strong> <a href="${escapeHtml(zoomLink)}">${escapeHtml(zoomLink)}</a></p>`
+          : ''),
+      ctaLabel: 'You will receive the next reminder automatically based on the meeting schedule.',
+    });
+
+    return {
+      subject: `Reminder: ${fullName || 'Client'} meeting starts in ${reminderLabel}`,
+      html: ownerHtml,
+      text: buildReminderTextSummary({
+        fullName,
+        attendeeEmail,
+        phone: booking.phone,
+        workspaceName: booking.workspaceName,
+        formattedDate,
+        timezone,
+        durationMinutes,
+        websiteUrl: booking.websiteUrl,
+        businessType: booking.businessType,
+        targetAudience: booking.targetAudience,
+        monthlyRevenue: booking.monthlyRevenue,
+        decisionMaker: booking.decisionMaker,
+        zoomLink,
+        includeLink,
+        reminderLabel,
+      }),
+    };
+  }
+
+  const clientHtml = buildBrandedEmailShell({
+    greeting: `Hey ${escapeHtml(firstName || 'there')},`,
+    intro: `This is a reminder that your meeting starts in ${escapeHtml(reminderLabel)}.`,
+    content: buildClientBookingSummaryCard({
+      formattedDate,
+      timezone,
+      durationMinutes,
+      zoomLink: includeLink ? zoomLink : null,
+      extraNote: includeLink
+        ? 'Your join link is now active above. Please join a few minutes early so we can start on time.'
+        : 'You will receive your join link in the final reminder email sent 5 minutes before your call.',
+    }),
+    ctaLabel: 'If you need to share an update before the call, reply to this email.',
+  });
+
+  return {
+    subject: `Reminder: your meeting starts in ${reminderLabel}`,
+    html: clientHtml,
+    text: includeLink
+      ? `Your meeting starts in ${reminderLabel}. Join link: ${zoomLink}`
+      : `Your meeting starts in ${reminderLabel}. We will send your join link 5 minutes before your call.`,
+  };
+};
 
 export const formatBookingDate = (scheduledAt, timezone) => {
   if (!scheduledAt) return 'N/A';
@@ -133,8 +271,16 @@ export const sendMeetingBookingEmails = async ({
     durationMinutes,
   });
 
+  const ownerBrandedHtml = buildBrandedEmailShell({
+    greeting: 'A new booking has been confirmed.',
+    intro:
+      'This is your internal confirmation from Client Reach AI. Review the details below and prepare for the meeting.',
+    content: ownerHtml,
+    ctaLabel: 'Additional reminder emails will be sent before the meeting starts.',
+  });
+
   await Promise.all([
     sendEmail({ from: fromAddress, to: email, subject: 'Your booking is confirmed', html: customerHtml }),
-    sendEmail({ from: fromAddress, to: ownerEmail, subject: `New booking: ${fullName || 'Unknown contact'}`, html: ownerHtml }),
+    sendEmail({ from: fromAddress, to: ownerEmail, subject: `New booking: ${fullName || 'Unknown contact'}`, html: ownerBrandedHtml }),
   ]);
 };

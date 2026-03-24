@@ -5,6 +5,7 @@ import { emailDispatches } from '../db/schema.js';
 import { sendEmail } from '../lib/email.js';
 import { generateId } from '../lib/ids.js';
 import { qstashReceiver } from '../lib/qstash.js';
+import { buildReminderEmailContent } from '../lib/meetingNotifications.js';
 
 const router = Router();
 
@@ -39,11 +40,12 @@ export const sendEmailHandler = async (req, res, next) => {
     }
 
     const payload = JSON.parse(req.body?.toString('utf8') || '{}');
-    const { to, subject, text, idempotencyKey, meetingId, emailType } = payload;
+    const { to, subject, text, idempotencyKey, meetingId, emailType, booking, zoomLink } =
+      payload;
 
-    if (!to || !subject || !text || !idempotencyKey) {
+    if (!to || !idempotencyKey) {
       return res.status(400).json({
-        message: 'to, subject, text, and idempotencyKey are required',
+        message: 'to and idempotencyKey are required',
       });
     }
 
@@ -57,10 +59,27 @@ export const sendEmailHandler = async (req, res, next) => {
       return res.json({ message: 'Email already processed' });
     }
 
+    const reminderContent = buildReminderEmailContent({
+      emailType,
+      booking,
+      zoomLink,
+    });
+
+    const finalSubject = reminderContent?.subject || subject;
+    const finalText = reminderContent?.text || text;
+    const finalHtml = reminderContent?.html || null;
+
+    if (!finalSubject || (!finalText && !finalHtml)) {
+      return res.status(400).json({
+        message: 'subject and at least one content type are required',
+      });
+    }
+
     const providerResponse = await sendEmail({
       to,
-      subject,
-      text,
+      subject: finalSubject,
+      html: finalHtml,
+      text: finalText,
     });
 
     await db.insert(emailDispatches).values({
