@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 import {
   ArrowLeft,
   CalendarDays,
@@ -9,61 +9,61 @@ import {
   Globe,
   Loader2,
   Send,
-} from 'lucide-react';
-import CustomSelect from '../components/CustomSelect';
-import { useMeetingLinkLookup } from '../hooks/useQueries';
+} from "lucide-react";
+import CustomSelect from "../components/CustomSelect";
+import { useMeetingLinkLookup } from "../hooks/useQueries";
 import {
   useCreatePublicMeetingLink,
   useSubmitMeetingBooking,
-} from '../hooks/useMutations';
+} from "../hooks/useMutations";
 
-const TIMEZONE = 'Europe/London';
+const TIMEZONE = "Europe/London";
 const DURATION_MINUTES = 45;
-const BRAND_COLOR = '#14A3F6';
-const SUCCESS_COLOR = '#10B981';
+const BRAND_COLOR = "#14A3F6";
+const SUCCESS_COLOR = "#10B981";
 
 const BUSINESS_TYPES = [
-  'SaaS (Software as a Service)',
-  'Marketing / Advertising Agency',
-  'Coaching / Consulting',
-  'Online Education / Courses',
-  'E-commerce (Physical Products)',
-  'Local Service Business (Real Estate, Med Spa, Contractor, etc.)',
-  'Financial Services',
-  'Health & Wellness',
-  'Personal Brand / Influencer',
-  'Nonprofit Organization',
-  'Other...',
+  "SaaS (Software as a Service)",
+  "Marketing / Advertising Agency",
+  "Coaching / Consulting",
+  "Online Education / Courses",
+  "E-commerce (Physical Products)",
+  "Local Service Business (Real Estate, Med Spa, Contractor, etc.)",
+  "Financial Services",
+  "Health & Wellness",
+  "Personal Brand / Influencer",
+  "Nonprofit Organization",
+  "Other...",
 ];
 
 const TARGET_AUDIENCES = [
-  'B2B (Businesses)',
-  'B2C (Consumers)',
-  'Enterprise Companies',
-  'Startups',
-  'Local Customers',
-  'High-Net-Worth Individuals',
-  'Professionals (Doctors, Lawyers, Advisors, etc.)',
-  'Entrepreneurs',
-  'Women',
-  'Men',
-  'Parents / Families',
-  'Other',
+  "B2B (Businesses)",
+  "B2C (Consumers)",
+  "Enterprise Companies",
+  "Startups",
+  "Local Customers",
+  "High-Net-Worth Individuals",
+  "Professionals (Doctors, Lawyers, Advisors, etc.)",
+  "Entrepreneurs",
+  "Women",
+  "Men",
+  "Parents / Families",
+  "Other",
 ];
 
 const MONTHLY_REVENUE_OPTIONS = [
-  '$0 - $1K /mo',
-  '$1k - 5K /mo',
-  '$5k - 25K /mo',
-  '$25k - 50K /mo',
-  '$50k - 100K /mo',
-  '$100k - 250K+ /mo',
+  "$0 - $1K /mo",
+  "$1k - 5K /mo",
+  "$5k - 25K /mo",
+  "$25k - 50K /mo",
+  "$50k - 100K /mo",
+  "$100k - 250K+ /mo",
 ];
 
 const DECISION_MAKER_OPTIONS = [
-  'Yes – I make the final decisions',
-  'I share decision making with a partner',
-  'No – I need approval from someone else',
+  "Yes – I make the final decisions",
+  "I share decision making with a partner",
+  "No – I need approval from someone else",
 ];
 
 const DEFAULT_BOOKING_START_HOUR = 9;
@@ -71,13 +71,19 @@ const DEFAULT_BOOKING_END_HOUR = 20;
 
 const toDateKey = (date) => {
   const year = date.getFullYear();
-  const month = `${date.getMonth() + 1}`.padStart(2, '0');
-  const day = `${date.getDate()}`.padStart(2, '0');
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
 };
 
+const toDateKeyFromParts = ({ year, month, day }) => {
+  const paddedMonth = `${month}`.padStart(2, "0");
+  const paddedDay = `${day}`.padStart(2, "0");
+  return `${year}-${paddedMonth}-${paddedDay}`;
+};
+
 const fromDateKey = (dateKey) => {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || '');
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || "");
   if (!match) return new Date();
 
   const [, year, month, day] = match;
@@ -86,54 +92,57 @@ const fromDateKey = (dateKey) => {
 
 const formatPrettyDate = (date) =>
   date.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 
 const getTimezoneOffsetLabel = (timeZone, date = new Date()) => {
   try {
-    const parts = new Intl.DateTimeFormat('en-US', {
+    const parts = new Intl.DateTimeFormat("en-US", {
       timeZone,
-      timeZoneName: 'shortOffset',
+      timeZoneName: "shortOffset",
     }).formatToParts(date);
     const offsetPart = parts.find(
-      (part) => part.type === 'timeZoneName'
+      (part) => part.type === "timeZoneName",
     )?.value;
     if (!offsetPart) return null;
-    return offsetPart.replace('UTC', 'GMT');
+    return offsetPart.replace("UTC", "GMT");
   } catch {
     return null;
   }
 };
 const getZonedDateParts = (date, timeZone) => {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
     timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: false,
   });
 
   const parts = formatter.formatToParts(date);
 
   return {
-    year: Number(parts.find((part) => part.type === 'year')?.value || 0),
-    month: Number(parts.find((part) => part.type === 'month')?.value || 0),
-    day: Number(parts.find((part) => part.type === 'day')?.value || 0),
-    hour: Number(parts.find((part) => part.type === 'hour')?.value || 0),
-    minute: Number(parts.find((part) => part.type === 'minute')?.value || 0),
+    year: Number(parts.find((part) => part.type === "year")?.value || 0),
+    month: Number(parts.find((part) => part.type === "month")?.value || 0),
+    day: Number(parts.find((part) => part.type === "day")?.value || 0),
+    hour: Number(parts.find((part) => part.type === "hour")?.value || 0),
+    minute: Number(parts.find((part) => part.type === "minute")?.value || 0),
   };
 };
 
+const getDateKeyInTimezone = (date, timeZone) =>
+  toDateKeyFromParts(getZonedDateParts(date, timeZone));
+
 const buildIsoFromDateAndTime = (dateKey, time12h, timeZone = TIMEZONE) => {
-  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(time12h || '');
+  const match = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(time12h || "");
   if (!match) return null;
 
-  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || '');
+  const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey || "");
   if (!dateMatch) return null;
 
   const [, yearValue, monthValue, dayValue] = dateMatch;
@@ -145,8 +154,8 @@ const buildIsoFromDateAndTime = (dateKey, time12h, timeZone = TIMEZONE) => {
   const minutes = Number(match[2]);
   const period = match[3].toUpperCase();
 
-  if (period === 'PM' && hours !== 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
+  if (period === "PM" && hours !== 12) hours += 12;
+  if (period === "AM" && hours === 12) hours = 0;
 
   let utcDate = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
 
@@ -158,7 +167,7 @@ const buildIsoFromDateAndTime = (dateKey, time12h, timeZone = TIMEZONE) => {
       zoned.month - 1,
       zoned.day,
       zoned.hour,
-      zoned.minute
+      zoned.minute,
     );
 
     const diffMinutes = Math.round((targetValue - zonedValue) / 60000);
@@ -175,8 +184,8 @@ const buildIsoFromDateAndTime = (dateKey, time12h, timeZone = TIMEZONE) => {
 const to12HourLabel = (hour) => {
   const date = new Date(2000, 0, 1, hour, 0, 0);
   return date.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
+    hour: "2-digit",
+    minute: "2-digit",
     hour12: true,
   });
 };
@@ -202,12 +211,12 @@ const buildTimeSlots = (startHour, endHour) => {
 
 const BookingForm = () => {
   const [searchParams] = useSearchParams();
-  const tokenParam = searchParams.get('token');
-  const workspaceIdParam = searchParams.get('workspaceId');
+  const tokenParam = searchParams.get("token");
+  const workspaceIdParam = searchParams.get("workspaceId");
 
   const [bookingToken, setBookingToken] = useState(tokenParam);
   const [publicInitError, setPublicInitError] = useState(null);
-  const [step, setStep] = useState('schedule');
+  const [step, setStep] = useState("schedule");
 
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
@@ -215,20 +224,20 @@ const BookingForm = () => {
   });
 
   const [selectedDateKey, setSelectedDateKey] = useState(() =>
-    toDateKey(new Date())
+    toDateKey(new Date()),
   );
-  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedTime, setSelectedTime] = useState("");
 
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    phone: '',
-    email: '',
-    website_url: '',
-    business_type: '',
-    target_audience: '',
-    monthly_revenue: '',
-    decision_maker: '',
+    first_name: "",
+    last_name: "",
+    phone: "",
+    email: "",
+    website_url: "",
+    business_type: "",
+    target_audience: "",
+    monthly_revenue: "",
+    decision_maker: "",
   });
 
   const [errors, setErrors] = useState({});
@@ -267,7 +276,7 @@ const BookingForm = () => {
         }
       } catch (error) {
         if (isActive) {
-          setPublicInitError(error?.message || 'Failed to start booking form');
+          setPublicInitError(error?.message || "Failed to start booking form");
         }
       }
     };
@@ -285,8 +294,8 @@ const BookingForm = () => {
   }, [selectedDateKey]);
 
   const monthLabel = currentMonth.toLocaleDateString(undefined, {
-    month: 'long',
-    year: 'numeric',
+    month: "long",
+    year: "numeric",
   });
 
   const calendarDays = useMemo(() => {
@@ -315,55 +324,91 @@ const BookingForm = () => {
   const selectedDateLabel = formatPrettyDate(selectedDate);
   const duration = bookingMeta?.durationMinutes || DURATION_MINUTES;
   const timezone = TIMEZONE;
+  const todayDateKey = useMemo(
+    () => getDateKeyInTimezone(new Date(), timezone),
+    [timezone],
+  );
   const timeSlots = useMemo(
     () =>
       buildTimeSlots(
         bookingMeta?.startHour ?? DEFAULT_BOOKING_START_HOUR,
-        bookingMeta?.endHour ?? DEFAULT_BOOKING_END_HOUR
+        bookingMeta?.endHour ?? DEFAULT_BOOKING_END_HOUR,
       ),
-    [bookingMeta?.startHour, bookingMeta?.endHour]
+    [bookingMeta?.startHour, bookingMeta?.endHour],
   );
   const timezoneOffsetLabel = useMemo(
     () => getTimezoneOffsetLabel(timezone, selectedDate),
-    [timezone, selectedDate]
+    [timezone, selectedDate],
   );
+  const disabledTimes = useMemo(() => {
+    if (!selectedDateKey || selectedDateKey > todayDateKey) {
+      return new Set();
+    }
+
+    const nowTimestamp = Date.now();
+    return new Set(
+      timeSlots.filter((time) => {
+        const slotIso = buildIsoFromDateAndTime(
+          selectedDateKey,
+          time,
+          timezone,
+        );
+        if (!slotIso) return true;
+        const slotTimestamp = new Date(slotIso).getTime();
+        return !Number.isFinite(slotTimestamp) || slotTimestamp <= nowTimestamp;
+      }),
+    );
+  }, [selectedDateKey, timeSlots, timezone, todayDateKey]);
+
+  useEffect(() => {
+    if (selectedDateKey < todayDateKey) {
+      setSelectedDateKey(todayDateKey);
+    }
+  }, [selectedDateKey, todayDateKey]);
+
+  useEffect(() => {
+    if (!selectedTime) return;
+    if (disabledTimes.has(selectedTime)) {
+      setSelectedTime("");
+    }
+  }, [selectedTime, disabledTimes]);
 
   const updateField = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: '' }));
+      setErrors((prev) => ({ ...prev, [field]: "" }));
     }
   };
 
   const validateDetails = () => {
     const nextErrors = {};
 
-    if (!formData.first_name.trim()) nextErrors.first_name = 'Required';
-    if (!formData.last_name.trim()) nextErrors.last_name = 'Required';
+    if (!formData.first_name.trim()) nextErrors.first_name = "Required";
+    if (!formData.last_name.trim()) nextErrors.last_name = "Required";
     if (!formData.phone.trim()) {
-      nextErrors.phone = 'Required';
+      nextErrors.phone = "Required";
     } else if (!/^[+]?[-()\d\s]{7,20}$/.test(formData.phone.trim())) {
-      nextErrors.phone = 'Invalid phone number';
+      nextErrors.phone = "Invalid phone number";
     }
 
     if (!formData.email.trim()) {
-      nextErrors.email = 'Required';
+      nextErrors.email = "Required";
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      nextErrors.email = 'Invalid email';
+      nextErrors.email = "Invalid email";
     }
 
     if (!formData.website_url.trim()) {
-      nextErrors.website_url = 'Required';
+      nextErrors.website_url = "Required";
     } else if (!/^https?:\/\/.+/i.test(formData.website_url.trim())) {
-      nextErrors.website_url = 'Website must start with http:// or https://';
+      nextErrors.website_url = "Website must start with http:// or https://";
     }
 
-    if (!formData.business_type) nextErrors.business_type = 'Required';
-    if (!formData.target_audience) nextErrors.target_audience = 'Required';
-    if (!formData.monthly_revenue) nextErrors.monthly_revenue = 'Required';
-    if (!formData.decision_maker) nextErrors.decision_maker = 'Required';
+    if (!formData.business_type) nextErrors.business_type = "Required";
+    if (!formData.target_audience) nextErrors.target_audience = "Required";
+    if (!formData.monthly_revenue) nextErrors.monthly_revenue = "Required";
+    if (!formData.decision_maker) nextErrors.decision_maker = "Required";
 
-    if (!selectedTime) nextErrors.selected_time = 'Please select a time';
+    if (!selectedTime) nextErrors.selected_time = "Please select a time";
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -376,14 +421,23 @@ const BookingForm = () => {
     const scheduledAt = buildIsoFromDateAndTime(
       selectedDateKey,
       selectedTime,
-      TIMEZONE
+      TIMEZONE,
     );
     if (!scheduledAt) {
-      toast.error('Invalid selected time');
+      toast.error("Invalid selected time");
       return;
     }
 
-    const toastId = toast.loading('Scheduling meeting...');
+    const scheduledAtTimestamp = new Date(scheduledAt).getTime();
+    if (
+      !Number.isFinite(scheduledAtTimestamp) ||
+      scheduledAtTimestamp <= Date.now()
+    ) {
+      toast.error("Please select a future date and time");
+      return;
+    }
+
+    const toastId = toast.loading("Scheduling meeting...");
     try {
       await submitMeetingBooking({
         token: bookingToken,
@@ -394,10 +448,10 @@ const BookingForm = () => {
           scheduled_at: scheduledAt,
         },
       });
-      toast.success('Meeting scheduled successfully', { id: toastId });
-      setStep('success');
+      toast.success("Meeting scheduled successfully", { id: toastId });
+      setStep("success");
     } catch (error) {
-      toast.error(error?.message || 'Failed to schedule meeting', {
+      toast.error(error?.message || "Failed to schedule meeting", {
         id: toastId,
       });
     }
@@ -483,14 +537,14 @@ const BookingForm = () => {
       </div>
 
       <div className="w-full max-w-5xl">
-        {(step === 'schedule' || step === 'details') && (
+        {(step === "schedule" || step === "details") && (
           <div className="rounded-2xl sm:rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md shadow-2xl overflow-hidden">
             <div className="grid grid-cols-1 md:grid-cols-[320px_1fr]">
               <aside className="border-b md:border-b-0 md:border-r border-white/10 p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6">
                 <button
                   type="button"
                   onClick={() => {
-                    if (step === 'details') setStep('schedule');
+                    if (step === "details") setStep("schedule");
                   }}
                   className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border border-white/20 inline-flex items-center justify-center hover:border-white/40 transition-colors"
                 >
@@ -525,7 +579,7 @@ const BookingForm = () => {
               </aside>
 
               <main className="p-4 sm:p-6 md:p-8">
-                {step === 'schedule' && (
+                {step === "schedule" && (
                   <div className="space-y-5 sm:space-y-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                       <h2 className="text-2xl sm:text-3xl font-bold text-white">
@@ -540,8 +594,8 @@ const BookingForm = () => {
                                 new Date(
                                   prev.getFullYear(),
                                   prev.getMonth() - 1,
-                                  1
-                                )
+                                  1,
+                                ),
                             )
                           }
                           className="w-8 h-8 rounded-full border border-white/20 text-gray-300 hover:border-white/40"
@@ -559,8 +613,8 @@ const BookingForm = () => {
                                 new Date(
                                   prev.getFullYear(),
                                   prev.getMonth() + 1,
-                                  1
-                                )
+                                  1,
+                                ),
                             )
                           }
                           className="w-8 h-8 rounded-full text-white"
@@ -575,13 +629,13 @@ const BookingForm = () => {
                       <div>
                         <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-xs sm:text-sm text-gray-500 mb-2">
                           {[
-                            'Sun',
-                            'Mon',
-                            'Tue',
-                            'Wed',
-                            'Thu',
-                            'Fri',
-                            'Sat',
+                            "Sun",
+                            "Mon",
+                            "Tue",
+                            "Wed",
+                            "Thu",
+                            "Fri",
+                            "Sat",
                           ].map((label) => (
                             <div key={label}>{label}</div>
                           ))}
@@ -598,15 +652,19 @@ const BookingForm = () => {
                             }
 
                             const isSelected = selectedDateKey === cell.key;
+                            const isPastDate = cell.key < todayDateKey;
                             return (
                               <button
                                 key={cell.key}
                                 type="button"
                                 onClick={() => setSelectedDateKey(cell.key)}
+                                disabled={isPastDate}
                                 className={`h-9 sm:h-10 rounded-full text-xs sm:text-sm transition border ${
                                   isSelected
-                                    ? 'text-white border-transparent font-semibold'
-                                    : 'border-white/15 text-gray-300 hover:border-white/40'
+                                    ? "text-white border-transparent font-semibold"
+                                    : isPastDate
+                                      ? "border-white/20 text-gray-500 cursor-not-allowed bg-white/1"
+                                      : "border-white/15 text-gray-300 hover:border-white/40"
                                 }`}
                                 style={
                                   isSelected
@@ -623,31 +681,37 @@ const BookingForm = () => {
 
                       <div className="space-y-3">
                         <div className="max-h-[258px] overflow-y-auto pr-1 space-y-3">
-                          {timeSlots.map((time) => (
-                            <button
-                              key={time}
-                              type="button"
-                              onClick={() => setSelectedTime(time)}
-                              className={`w-full border rounded-xl py-3 text-center font-semibold transition ${
-                                selectedTime === time
-                                  ? 'text-white border-transparent'
-                                  : 'text-gray-200 border-white/20 hover:border-white/40 hover:bg-white/5'
-                              }`}
-                              style={
-                                selectedTime === time
-                                  ? { backgroundColor: BRAND_COLOR }
-                                  : undefined
-                              }
-                            >
-                              {time}
-                            </button>
-                          ))}
+                          {timeSlots.map((time) => {
+                            const isDisabled = disabledTimes.has(time);
+                            return (
+                              <button
+                                key={time}
+                                type="button"
+                                onClick={() => setSelectedTime(time)}
+                                disabled={isDisabled}
+                                className={`w-full border rounded-xl py-3 text-center font-semibold transition ${
+                                  selectedTime === time
+                                    ? "text-white border-transparent"
+                                    : isDisabled
+                                      ? "text-gray-400 border-white/20 cursor-not-allowed bg-white/5"
+                                      : "text-gray-200 border-white/20 hover:border-white/40 hover:bg-white/5"
+                                }`}
+                                style={
+                                  selectedTime === time
+                                    ? { backgroundColor: BRAND_COLOR }
+                                    : undefined
+                                }
+                              >
+                                {time}
+                              </button>
+                            );
+                          })}
                         </div>
 
                         <button
                           type="button"
                           disabled={!selectedTime}
-                          onClick={() => setStep('details')}
+                          onClick={() => setStep("details")}
                           className="w-full mt-2 py-3 rounded-xl text-white font-semibold disabled:opacity-40"
                           style={{ backgroundColor: BRAND_COLOR }}
                         >
@@ -658,7 +722,7 @@ const BookingForm = () => {
                   </div>
                 )}
 
-                {step === 'details' && (
+                {step === "details" && (
                   <form
                     onSubmit={handleSubmit}
                     className="space-y-5 text-sm sm:text-base"
@@ -681,12 +745,12 @@ const BookingForm = () => {
                           type="text"
                           value={formData.first_name}
                           onChange={(event) =>
-                            updateField('first_name', event.target.value)
+                            updateField("first_name", event.target.value)
                           }
                           className={`w-full bg-white/5 border ${
                             errors.first_name
-                              ? 'border-red-500'
-                              : 'border-white/10'
+                              ? "border-red-500"
+                              : "border-white/10"
                           } rounded-xl px-4 py-3 focus:outline-none focus:border-[#14A3F6] transition-all hover:bg-white/10`}
                           placeholder="First Name"
                         />
@@ -705,12 +769,12 @@ const BookingForm = () => {
                           type="text"
                           value={formData.last_name}
                           onChange={(event) =>
-                            updateField('last_name', event.target.value)
+                            updateField("last_name", event.target.value)
                           }
                           className={`w-full bg-white/5 border ${
                             errors.last_name
-                              ? 'border-red-500'
-                              : 'border-white/10'
+                              ? "border-red-500"
+                              : "border-white/10"
                           } rounded-xl px-4 py-3 focus:outline-none focus:border-[#14A3F6] transition-all hover:bg-white/10`}
                           placeholder="Last Name"
                         />
@@ -729,10 +793,10 @@ const BookingForm = () => {
                           type="tel"
                           value={formData.phone}
                           onChange={(event) =>
-                            updateField('phone', event.target.value)
+                            updateField("phone", event.target.value)
                           }
                           className={`w-full bg-white/5 border ${
-                            errors.phone ? 'border-red-500' : 'border-white/10'
+                            errors.phone ? "border-red-500" : "border-white/10"
                           } rounded-xl px-4 py-3 focus:outline-none focus:border-[#14A3F6] transition-all hover:bg-white/10`}
                           placeholder="Phone"
                         />
@@ -751,10 +815,10 @@ const BookingForm = () => {
                           type="email"
                           value={formData.email}
                           onChange={(event) =>
-                            updateField('email', event.target.value)
+                            updateField("email", event.target.value)
                           }
                           className={`w-full bg-white/5 border ${
-                            errors.email ? 'border-red-500' : 'border-white/10'
+                            errors.email ? "border-red-500" : "border-white/10"
                           } rounded-xl px-4 py-3 focus:outline-none focus:border-[#14A3F6] transition-all hover:bg-white/10`}
                           placeholder="Email"
                         />
@@ -773,12 +837,12 @@ const BookingForm = () => {
                           type="text"
                           value={formData.website_url}
                           onChange={(event) =>
-                            updateField('website_url', event.target.value)
+                            updateField("website_url", event.target.value)
                           }
                           className={`w-full bg-white/5 border ${
                             errors.website_url
-                              ? 'border-red-500'
-                              : 'border-white/10'
+                              ? "border-red-500"
+                              : "border-white/10"
                           } rounded-xl px-4 py-3 focus:outline-none focus:border-[#14A3F6] transition-all hover:bg-white/10`}
                           placeholder="https://example.com"
                         />
@@ -796,7 +860,7 @@ const BookingForm = () => {
                         <CustomSelect
                           value={formData.business_type}
                           onChange={(value) =>
-                            updateField('business_type', value)
+                            updateField("business_type", value)
                           }
                           options={BUSINESS_TYPES}
                           hasError={Boolean(errors.business_type)}
@@ -815,7 +879,7 @@ const BookingForm = () => {
                         <CustomSelect
                           value={formData.target_audience}
                           onChange={(value) =>
-                            updateField('target_audience', value)
+                            updateField("target_audience", value)
                           }
                           options={TARGET_AUDIENCES}
                           hasError={Boolean(errors.target_audience)}
@@ -834,7 +898,7 @@ const BookingForm = () => {
                         <CustomSelect
                           value={formData.monthly_revenue}
                           onChange={(value) =>
-                            updateField('monthly_revenue', value)
+                            updateField("monthly_revenue", value)
                           }
                           options={MONTHLY_REVENUE_OPTIONS}
                           hasError={Boolean(errors.monthly_revenue)}
@@ -861,8 +925,8 @@ const BookingForm = () => {
                                 key={option}
                                 className={`flex items-center gap-3 rounded-xl px-4 py-3 cursor-pointer border transition-all ${
                                   isSelected
-                                    ? 'border-[#14A3F6] bg-[#14A3F6]/10 shadow-[0_0_16px_rgba(20,163,246,0.2)]'
-                                    : 'border-white/10 hover:border-white/30 hover:bg-white/5'
+                                    ? "border-[#14A3F6] bg-[#14A3F6]/10 shadow-[0_0_16px_rgba(20,163,246,0.2)]"
+                                    : "border-white/10 hover:border-white/30 hover:bg-white/5"
                                 }`}
                               >
                                 <input
@@ -870,13 +934,13 @@ const BookingForm = () => {
                                   name="decision_maker"
                                   checked={isSelected}
                                   onChange={() =>
-                                    updateField('decision_maker', option)
+                                    updateField("decision_maker", option)
                                   }
                                   className="h-4 w-4 shrink-0 accent-[#14A3F6] cursor-pointer"
                                 />
                                 <span
                                   className={`text-sm leading-relaxed ${
-                                    isSelected ? 'text-white' : 'text-gray-300'
+                                    isSelected ? "text-white" : "text-gray-300"
                                   }`}
                                 >
                                   {option}
@@ -928,7 +992,7 @@ const BookingForm = () => {
           </div>
         )}
 
-        {step === 'success' && (
+        {step === "success" && (
           <div className="p-6 sm:p-8 rounded-2xl sm:rounded-3xl text-center max-w-xl mx-auto border border-white/10 bg-white/5 backdrop-blur-md shadow-[0_0_20px_rgba(49,145,196,0.3)]">
             <div className="flex justify-center mb-5 sm:mb-6">
               <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center border border-[#10B981]/20 bg-[#10B981]/10 shadow-[0_0_30px_rgba(16,185,129,0.2)]">

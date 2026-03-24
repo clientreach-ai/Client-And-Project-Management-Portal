@@ -2,19 +2,16 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import {
-  meetingLinks,
-  meetingReminders,
-  meetings,
-  workspaces,
-} from '../db/schema.js';
+import { meetingLinks, meetings, workspaces } from '../db/schema.js';
 import { generateId } from '../lib/ids.js';
-import {
-  buildMeetingReminderValues,
-  sendMeetingBookingEmails,
-} from '../lib/meetingNotifications.js';
+import { sendMeetingBookingEmails } from '../lib/meetingNotifications.js';
 import { requireAuth } from '../middleware/auth.js';
 import { isWorkspaceAdmin } from '../lib/permissions.js';
+import { createZoomMeeting, cancelZoomMeeting } from '../lib/zoom.js';
+import {
+  cancelScheduledEmails,
+  scheduleEmails,
+} from '../lib/bookingScheduler.js';
 
 const router = Router();
 const BOOKING_TIMEZONE = 'Europe/London';
@@ -232,48 +229,50 @@ router.post('/submit', async (req, res, next) => {
     const scheduledEndAt = new Date(
       scheduledAt.getTime() + durationMinutes * 60 * 1000
     );
-    const reminderValues = buildMeetingReminderValues({
-      meetingId,
-      scheduledAt,
+    const zoomMeeting = await createZoomMeeting({
+      topic: linkRecord.title || 'Discovery Call',
+      startTimeUtc: scheduledAt,
+      durationMinutes,
     });
 
-    await db.transaction(async (tx) => {
-      await tx.insert(meetings).values({
-        id: meetingId,
-        workspaceId: linkRecord.workspaceId,
-        meetingLinkId: linkRecord.id,
-        status: 'SCHEDULED',
-        firstName,
-        lastName,
-        phone,
-        email,
-        websiteUrl: websiteUrl || null,
-        businessType: businessType || null,
-        targetAudience: targetAudience || null,
-        monthlyRevenue: monthlyRevenue || null,
-        decisionMaker: decisionMaker || null,
-        scheduledAt,
-        scheduledEndAt,
-        timezone,
-        durationMinutes,
-        payload: payload || {},
-        updatedAt: new Date(),
-      });
-
-      if (reminderValues.length) {
-        await tx.insert(meetingReminders).values(reminderValues);
-      }
-
-      await tx
-        .update(meetingLinks)
-        .set({
-          status: 'BOOKED',
-          updatedAt: new Date(),
-        })
-        .where(eq(meetingLinks.id, linkRecord.id));
-    });
+    let scheduledMessageIds = [];
 
     try {
+      await db.transaction(async (tx) => {
+        await tx.insert(meetings).values({
+          id: meetingId,
+          workspaceId: linkRecord.workspaceId,
+          meetingLinkId: linkRecord.id,
+          status: 'SCHEDULED',
+          firstName,
+          lastName,
+          phone,
+          email,
+          websiteUrl: websiteUrl || null,
+          businessType: businessType || null,
+          targetAudience: targetAudience || null,
+          monthlyRevenue: monthlyRevenue || null,
+          decisionMaker: decisionMaker || null,
+          scheduledAt,
+          scheduledEndAt,
+          timezone,
+          durationMinutes,
+          zoomMeetingId: zoomMeeting.zoomMeetingId,
+          zoomJoinUrl: zoomMeeting.joinUrl,
+          zoomStartUrl: zoomMeeting.startUrl,
+          payload: payload || {},
+          updatedAt: new Date(),
+        });
+
+        await tx
+          .update(meetingLinks)
+          .set({
+            status: 'BOOKED',
+            updatedAt: new Date(),
+          })
+          .where(eq(meetingLinks.id, linkRecord.id));
+      });
+
       await sendMeetingBookingEmails({
         workspaceName: workspace?.name || null,
         firstName,
@@ -289,11 +288,65 @@ router.post('/submit', async (req, res, next) => {
         durationMinutes,
         scheduledAt,
       });
-    } catch (emailError) {
-      console.error('Failed to send meeting booking emails:', emailError);
+
+      const scheduledJobs = await scheduleEmails({
+        meetingId,
+        attendeeEmail: email,
+        zoomLink: zoomMeeting.joinUrl,
+        scheduledAt,
+        booking: {
+          workspaceName: workspace?.name || null,
+          firstName,
+          lastName,
+          attendeeEmail: email,
+          phone,
+          timezone,
+          durationMinutes,
+          scheduledAt,
+          websiteUrl,
+          businessType,
+          targetAudience,
+          monthlyRevenue,
+          decisionMaker,
+        },
+      });
+
+      scheduledMessageIds = Object.values(scheduledJobs).filter(Boolean);
+
+      await db
+        .update(meetings)
+        .set({
+          ...scheduledJobs,
+          updatedAt: new Date(),
+        })
+        .where(eq(meetings.id, meetingId));
+    } catch (error) {
+      console.error('Booking flow failed, rolling back external resources:', error);
+
+      await cancelScheduledEmails(scheduledMessageIds);
+
+      await cancelZoomMeeting(zoomMeeting.zoomMeetingId).catch((zoomError) => {
+        console.error('Failed to cancel Zoom meeting after booking failure:', zoomError);
+      });
+
+      await db.transaction(async (tx) => {
+        await tx.delete(meetings).where(eq(meetings.id, meetingId));
+        await tx
+          .update(meetingLinks)
+          .set({
+            status: 'OPEN',
+            updatedAt: new Date(),
+          })
+          .where(eq(meetingLinks.id, linkRecord.id));
+      });
+
+      throw error;
     }
 
-    res.json({ message: 'Meeting scheduled', meetingId });
+    res.json({
+      message: 'Meeting scheduled',
+      meetingId,
+    });
   } catch (error) {
     next(error);
   }
@@ -433,6 +486,19 @@ router.delete('/:meetingId', async (req, res, next) => {
       req.user.role === 'ADMIN' ||
       (await isWorkspaceAdmin(req.user.id, meeting.workspaceId));
     if (!admin) return res.status(403).json({ message: 'Forbidden' });
+
+    await cancelScheduledEmails([
+      meeting.qstashClientReminder1hMessageId,
+      meeting.qstashClientReminder30mMessageId,
+      meeting.qstashClientReminder5mMessageId,
+      meeting.qstashOwnerReminder1hMessageId,
+      meeting.qstashOwnerReminder30mMessageId,
+      meeting.qstashOwnerReminder5mMessageId,
+    ]);
+
+    await cancelZoomMeeting(meeting.zoomMeetingId).catch((zoomError) => {
+      console.error('Failed to cancel Zoom meeting:', zoomError);
+    });
 
     await db.transaction(async (tx) => {
       await tx.delete(meetings).where(eq(meetings.id, meeting.id));

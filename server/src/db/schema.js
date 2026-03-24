@@ -188,6 +188,19 @@ export const meetings = pgTable('meetings', {
   }).notNull(),
   timezone: text('timezone').notNull(),
   durationMinutes: integer('duration_minutes').notNull(),
+  zoomMeetingId: text('zoom_meeting_id'),
+  zoomJoinUrl: text('zoom_join_url'),
+  zoomStartUrl: text('zoom_start_url'),
+  qstashClientReminder1hMessageId: text('qstash_client_reminder_1h_message_id'),
+  qstashClientReminder30mMessageId: text(
+    'qstash_client_reminder_30m_message_id'
+  ),
+  qstashClientReminder5mMessageId: text('qstash_client_reminder_5m_message_id'),
+  qstashOwnerReminder1hMessageId: text('qstash_owner_reminder_1h_message_id'),
+  qstashOwnerReminder30mMessageId: text('qstash_owner_reminder_30m_message_id'),
+  qstashOwnerReminder5mMessageId: text('qstash_owner_reminder_5m_message_id'),
+  qstashReminderMessageId: text('qstash_reminder_message_id'),
+  qstashJoinMessageId: text('qstash_join_message_id'),
   payload: jsonb('payload').default({}),
   createdAt: timestamp('created_at', { withTimezone: true })
     .defaultNow()
@@ -197,36 +210,26 @@ export const meetings = pgTable('meetings', {
     .notNull(),
 });
 
-export const meetingReminders = pgTable(
-  'meeting_reminders',
+export const emailDispatches = pgTable(
+  'email_dispatches',
   {
     id: text('id').primaryKey(),
-    meetingId: text('meeting_id')
-      .notNull()
-      .references(() => meetings.id, { onDelete: 'cascade' }),
-    reminderType: text('reminder_type').notNull(),
-    minutesBefore: integer('minutes_before').notNull(),
-    scheduledFor: timestamp('scheduled_for', { withTimezone: true }).notNull(),
-    status: text('status').default('PENDING').notNull(),
-    processingAt: timestamp('processing_at', { withTimezone: true }),
-    sentAt: timestamp('sent_at', { withTimezone: true }),
-    error: text('error'),
+    idempotencyKey: text('idempotency_key').notNull(),
+    meetingId: text('meeting_id').references(() => meetings.id, {
+      onDelete: 'cascade',
+    }),
+    emailType: text('email_type'),
+    recipient: text('recipient').notNull(),
+    providerMessageId: text('provider_message_id'),
+    sentAt: timestamp('sent_at', { withTimezone: true }).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true })
-      .defaultNow()
-      .notNull(),
-    updatedAt: timestamp('updated_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
   },
   (table) => ({
-    meetingTypeUniqueIdx: uniqueIndex('meeting_reminders_meeting_type_uidx').on(
-      table.meetingId,
-      table.reminderType
-    ),
-    statusScheduleIdx: index('meeting_reminders_status_scheduled_idx').on(
-      table.status,
-      table.scheduledFor
-    ),
+    idempotencyKeyUniqueIdx: uniqueIndex(
+      'email_dispatches_idempotency_key_uidx'
+    ).on(table.idempotencyKey),
   })
 );
 

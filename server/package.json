@@ -14,13 +14,13 @@
     "db:studio": "drizzle-kit studio --config drizzle.config.cjs"
   },
   "dependencies": {
+    "@upstash/qstash": "^2.8.1",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.38.1",
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
-    "node-cron": "^4.2.1",
     "pg": "^8.11.5",
     "resend": "^6.9.3",
     "stripe": "^18.5.0"

@@ -36,6 +36,27 @@
       "when": 1773792000000,
       "tag": "0004_clear_lead_links",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1774290621005,
+      "tag": "0005_regular_quentin_quire",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774291790448,
+      "tag": "0006_nosy_iron_monger",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774298035769,
+      "tag": "0007_sweet_marvel_boy",
+      "breakpoints": true
     }
   ]
 }

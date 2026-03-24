@@ -20,12 +20,17 @@ export const getEmailFromAddress = () => {
 export const getOwnerEmail = () =>
   process.env.OWNER_EMAIL || process.env.EMAIL_USER;
 
-export const sendEmail = async ({ from, to, subject, html }) => {
+export const sendEmail = async ({ from, to, subject, html, text }) => {
+  if (!html && !text) {
+    throw new Error('Either html or text is required to send email');
+  }
+
   const { data, error } = await resend.emails.send({
     from: from || getEmailFromAddress(),
     to: Array.isArray(to) ? to : [to],
     subject,
-    html,
+    ...(html ? { html } : {}),
+    ...(text ? { text } : {}),
   });
   if (error) throw new Error(error.message);
   return data;
